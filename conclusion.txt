@@ -1,0 +1,7 @@
+words: 2608
+senses: 9025
+sentences: 39211
+
+senses per word avg: 3.46
+sentences per word avg: 15.03
+sentences per sense avg: 4.34
