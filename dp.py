@@ -90,21 +90,22 @@ stanza.download('et', verbose=False)
 
 et_nlp = stanza.Pipeline('et', processors='tokenize,lemma', verbose=False)
 
-#removing spaces so that parser can recognise elements
 def trim_unnessessary_spaces(text):
-
   splitted = text.split("\n")
   for i, item in enumerate(splitted):
     splitted[i] = item.lstrip()
     splitted[i] = re.sub('< ','<',splitted[i])
     splitted[i] = re.sub(' >','>',splitted[i])
-    splitted[i] = re.sub('& nbsp','&nbsp',splitted[i])
-    splitted[i] = re.sub('& ndash','&ndash',splitted[i])     
+    s_l = re.findall('& [a-z]+;',splitted[i])
+    for el in s_l:
+      one = el.split()[0]
+      two = el.split()[1]
+      three = one + two
+      splitted[i] = re.sub(el,three,splitted[i])
+    splitted[i] = re.sub('& #','&#',splitted[i])     
   text = '\n'.join(splitted)
   return text
-#function for cleaning text from markup and other, should return pure sentences in most cases
 def search(text):
-
   regex = re.compile(r'==\s*Vaata ka\s*')
   text = regex.split(text)[0]
   regex = re.compile(r'==\s*Kirjandus\s*==')
@@ -114,37 +115,51 @@ def search(text):
   regex = re.compile(r'==\s*Välislingid\s*==')
   text = regex.split(text)[0]
   text = re.sub('\[\[.*:.*(\|pisi|thumb|px).*\]\]','',text)
-
   code = mwparserfromhell.parse(trim_unnessessary_spaces(text))
 
   for tag in code.filter_tags(recursive=False):
-    if tag[0] == "'" and tag[-1]=="'":
-      code.replace(tag,tag.contents)
-    else:
-      code.replace(tag,"")
+    #if tag.closing_tag == "ref":
+      #code.replace(tag,"")
+    #else:
+    code.replace(tag,tag.contents)
+ 
+
 
   for argument in code.filter_arguments():
+
     code.replace(argument, "")
 
+
   for comment in code.filter_comments():
+
     code.replace(comment,"")
 
   for external_link in code.filter_external_links():
+
     code.replace(external_link,"")
 
   for heading in code.filter_headings():
+
     code.replace(heading,"")
 
   for html_entity in code.filter_html_entities():
-    code.replace(html_entity, "")
+
+    code.replace(html_entity, html_entity.normalize())
 
   for template in code.filter_templates(recursive=False):
+
     code.replace(template,"")
 
-  return remove_markup(str(code))
+  answer = remove_markup(str(code))
+
+  splitted = answer.split('\n')
+  for i,item in enumerate(splitted):
+    splitted[i]=re.sub("\n", "",splitted[i])
+  answer = ''.join(splitted)
+
+  return answer
 
 def ok(lsnc,lword):    #function used for checking if sentence contains word
-  
   parts_o_word = len(lword)
   if parts_o_word == 1:
     return (lword[0] in lsnc) #generally checks if element of second list is in first list
@@ -171,12 +186,13 @@ def A(word, sense):
   raw_text = all_pages[sense]
   #cleaning the text from unnecessary elements
   sentences_text = search(raw_text)
+  
   #excluding sentences that don't contain the word
   important = important_sentences(word,sentences_text)
   #if there is at least 1 sentence containing the WORD, return (sense, these sentences, number of these sentences)
-  if len(important) > 0:
+  if len(important) > 1 and not sense.split()[-1].isnumeric(): #how to check if string is number
     length = len(important)
-    return (sense, important, length)
+    return (sense, important)
   #if no article about that sense return 0
   return 0
 
@@ -203,6 +219,17 @@ def fix_list(initial):
 #function that takes a WORD and list of its senses and returns (WORD, output of function A for each sense)
 def B(word, senses):
   senses = fix_list(senses)
+  lemma = et_nlp(word).sentences[0].words[0].lemma
+  l = []
+  for el in senses:
+    s = et_nlp(el.split('(')[0]).sentences
+    if s != []:
+      if s[0].words[0].lemma == lemma:
+        l.append(el)
+  senses = l
+  #senses = [el for el in senses if et_nlp(el.split('(')[0]).sentences[0].words[0].lemma == lemma]
+  if len(senses) < 2:
+    return 0
   value1 = word
   value2 = []  #will contain results of function A on each sense eg (sense, clean text, number of sentences)
   #filling up value2
@@ -235,19 +262,15 @@ with open("/content/drive/My Drive/Colab Notebooks/wiki_et.txt","w") as file1:
   for el in disambiguation_pages_senses:
     line = B(el[0],el[1])
     if line != 0:
-      counter = 0
-      for element in line[1]:
-        counter += element[2]
-      if counter != len(line[1]):
-        nr_of_words += 1
-        nr_of_senses += len(line[1])
-        file1.write('WORD: '+line[0]+'\n')
-        for i,elem in enumerate(line[1]):
-          nr_of_sntnces += elem[2]
-          file1.write('SENSE'+str(i)+': '+elem[0]+' - ')
-          file1.write(elem[1][0].strip('\n')+'\n')
-          file1.write('snc: ' + str(len(elem[1])) + '\n')
-        file1.write('------------------------\n')
+     
+      nr_of_words+=1
+      file1.write(line[0]+":"+"\n")
+      for elem in line[1]:
+     
+        nr_of_senses+=1
+        nr_of_sntnces+=len(elem[1])
+
+        file1.write(elem[0]+":"+"".join(elem[1])+"\n")
 
 print(nr_of_words)
 print(nr_of_senses)
