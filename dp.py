@@ -96,7 +96,7 @@ def trim_unnessessary_spaces(text):
     splitted[i] = item.lstrip()
     splitted[i] = re.sub('< ','<',splitted[i])
     splitted[i] = re.sub(' >','>',splitted[i])
-    s_l = re.findall('& [a-z]+;',splitted[i])
+    s_l = re.findall('& [a-z1-9]+;',splitted[i])
     for el in s_l:
       one = el.split()[0]
       two = el.split()[1]
@@ -114,41 +114,35 @@ def search(text):
   text = regex.split(text)[0]
   regex = re.compile(r'==\s*Välislingid\s*==')
   text = regex.split(text)[0]
-  text = re.sub('\[\[.*:.*(\|pisi|thumb|px).*\]\]','',text)
   code = mwparserfromhell.parse(trim_unnessessary_spaces(text))
-
-  for tag in code.filter_tags(recursive=False):
-    #if tag.closing_tag == "ref":
-      #code.replace(tag,"")
-    #else:
-    code.replace(tag,tag.contents)
  
-
-
+  for tag in code.filter_tags(recursive=False):
+    if tag[0] == "{" and tag[-1] == "}" or tag.tag == 'gallery' or tag.tag == 'imagemap' or tag.tag == 'center':
+      code.replace(tag,"")
+    else:
+      code.replace(tag,tag.contents)
+  
   for argument in code.filter_arguments():
-
     code.replace(argument, "")
-
-
+  
   for comment in code.filter_comments():
-
     code.replace(comment,"")
-
+  
   for external_link in code.filter_external_links():
-
     code.replace(external_link,"")
-
+  
   for heading in code.filter_headings():
-
     code.replace(heading,"")
-
+  
   for html_entity in code.filter_html_entities():
-
     code.replace(html_entity, html_entity.normalize())
-
+  
   for template in code.filter_templates(recursive=False):
-
     code.replace(template,"")
+  
+  for wikilink in code.filter_wikilinks(recursive=False):
+    if bool(re.match("(File|Fail|Pilt|Image):.+\.(SVG|svg|JPEG|jpeg|GIF|gif|PNG|png|JPG|jpg)",str(wikilink.title))):
+      code.replace(wikilink,"")
 
   answer = remove_markup(str(code))
 
@@ -156,7 +150,6 @@ def search(text):
   for i,item in enumerate(splitted):
     splitted[i]=re.sub("\n", "",splitted[i])
   answer = ''.join(splitted)
-
   return answer
 
 def ok(lsnc,lword):    #function used for checking if sentence contains word
@@ -270,7 +263,7 @@ with open("/content/drive/My Drive/Colab Notebooks/wiki_et.txt","w") as file1:
         nr_of_senses+=1
         nr_of_sntnces+=len(elem[1])
 
-        file1.write(elem[0]+":"+"".join(elem[1])+"\n")
+        file1.write(elem[0]+":"+" ".join(elem[1])+"\n")
 
 print(nr_of_words)
 print(nr_of_senses)
