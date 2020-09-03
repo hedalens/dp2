@@ -65,13 +65,16 @@ for line in subprocess.Popen(['bzcat'],
 
 all_pages = dict(handler._pages)
 all_titles = list(all_pages)
+#
 disambiguation_pages_texts = []
 for el in handler._pages:
   is_disam_page = '{{täpsustus}}' in el[1] or '{{täpsustuslehekülg}}' in el[1] or '{{Täpsustus}}' in el[1] or '{{Täpsustuslehekülg}}' in el[1]
   if (is_disam_page) and el[0] != 'Vikipeedia:Vormistusreeglid':
     disambiguation_pages_texts.append(el)
+#
 
 #make list of (disambiguation page, senses)-s
+#
 disambiguation_pages_senses = []
 for el in disambiguation_pages_texts:
   senses = []
@@ -81,6 +84,7 @@ for el in disambiguation_pages_texts:
     if links != []:
       senses.append(links[0].split('|')[0])
   disambiguation_pages_senses.append((el[0],senses))
+#
 
 pip install stanza
 
@@ -117,7 +121,7 @@ def search(text):
   code = mwparserfromhell.parse(trim_unnessessary_spaces(text))
  
   for tag in code.filter_tags(recursive=False):
-    if tag[0] == "{" and tag[-1] == "}" or tag.tag == 'gallery' or tag.tag == 'imagemap' or tag.tag == 'center':
+    if tag[0] == "{" and tag[-1] == "}" or tag.tag == 'gallery' or tag.tag == 'imagemap' or tag.tag == 'center': #or tag.tag == 'ref'
       code.replace(tag,"")
     else:
       code.replace(tag,tag.contents)
@@ -153,6 +157,7 @@ def search(text):
   return answer
 
 def ok(lsnc,lword):    #function used for checking if sentence contains word
+  #
   parts_o_word = len(lword)
   if parts_o_word == 1:
     return (lword[0] in lsnc) #generally checks if element of second list is in first list
@@ -161,6 +166,7 @@ def ok(lsnc,lword):    #function used for checking if sentence contains word
       if lsnc[i:i+parts_o_word] == lword:
         return True
   return False
+  #
 
 #takes word, text, returns sentences containing the word
 def important_sentences(word,sentences_text):
@@ -175,18 +181,18 @@ def important_sentences(word,sentences_text):
   return lst_of_sntns_chosen
 
 #fuction that takes sense and returns (sense, sentences containing that sense)
-def A(word, sense):
-  raw_text = all_pages[sense]
-  #cleaning the text from unnecessary elements
-  sentences_text = search(raw_text)
-  
-  #excluding sentences that don't contain the word
-  important = important_sentences(word,sentences_text)
-  #if there is at least 1 sentence containing the WORD, return (sense, these sentences, number of these sentences)
-  if len(important) > 1 and not sense.split()[-1].isnumeric(): #how to check if string is number
-    length = len(important)
-    return (sense, important)
-  #if no article about that sense return 0
+def A(w, s):
+
+  if (bool(re.match("[^\s]+ \(.+\)",w)) or len(w.split()) == 1) and (bool(re.match("[^\s]+ \(.+\)",s)) or len(s.split()) == 1):
+    if et_nlp(w.split()[0]).sentences[0].words[0].lemma == et_nlp(s.split()[0]).sentences[0].words[0].lemma:
+
+      raw_text = all_pages[s]
+      sentences_text = search(raw_text)
+      important = important_sentences(w,sentences_text)
+
+      if len(important) > 1:
+        return (s, important)
+
   return 0
 
 def fix_list(initial):
@@ -220,17 +226,14 @@ def B(word, senses):
       if s[0].words[0].lemma == lemma:
         l.append(el)
   senses = l
-  #senses = [el for el in senses if et_nlp(el.split('(')[0]).sentences[0].words[0].lemma == lemma]
   if len(senses) < 2:
     return 0
   value1 = word
-  value2 = []  #will contain results of function A on each sense eg (sense, clean text, number of sentences)
-  #filling up value2
+  value2 = []
   for sense in senses:
     sense_and_sntnces = A(word, sense)
-    if sense_and_sntnces != 0: #only if there was at least 2 senses with sentences about them
+    if sense_and_sntnces != 0:
       value2.append(sense_and_sntnces)
-  #accept only tuples where word has at least 2 senses which have sentences containing the word
   if len(value2) < 2:
     return 0
   return (value1,value2)

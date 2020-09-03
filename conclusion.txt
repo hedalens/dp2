@@ -1,10 +1,15 @@
-words: 1118
-senses: 3093
-sentences: 19793
+words: 648
+senses: 1636
+sentences: 11321
 
-senses per word avg: 2.77
-sentences per word avg: 17.7
-sentences per sense avg: 6.4
+senses per word avg: 2.52
+sentences per word avg: 17.47
+sentences per sense avg: 6.92
+
+
+
+
+
 
 
 
